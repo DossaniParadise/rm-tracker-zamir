@@ -3,112 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zamir's Tracker</title>
+    <title>Zamir's Field Tracker</title>
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        /* Ultra-lightweight CSS - No external frameworks */
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --primary: #0f172a;
+            --accent: #2563eb;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            background: #f8fafc; margin: 0; color: #1e293b; line-height: 1.4;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+            overflow-x: hidden;
         }
-        header { 
-            background: #fff; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; 
-            position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between;
+
+        /* Header */
+        header {
+            background: #fff;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-profile { display: flex; align-items: center; gap: 12px; }
         .avatar { 
-            width: 36px; height: 36px; background: #2563eb; color: #fff; 
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+            width: 40px; height: 40px; background: var(--primary); color: #fff; 
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 16px;
         }
-        .user-text h2 { margin: 0; font-size: 14px; font-weight: 700; }
-        .user-text p { margin: 0; font-size: 11px; color: #64748b; }
-        
-        .tabs { 
-            display: flex; background: #fff; border-bottom: 1px solid #e2e8f0; 
-            position: sticky; top: 61px; z-index: 9;
-        }
-        .tab { 
-            flex: 1; text-align: center; padding: 12px; font-size: 13px; font-weight: 600; 
-            color: #64748b; border-bottom: 2px solid transparent; cursor: pointer;
-        }
-        .tab.active { color: #2563eb; border-bottom-color: #2563eb; background: #eff6ff; }
+        .user-details h1 { margin: 0; font-size: 15px; font-weight: 700; color: var(--primary); }
+        .user-details p { margin: 0; font-size: 11px; color: var(--muted); }
 
-        main { padding: 12px; max-width: 600px; margin: 0 auto; }
-        
-        .ticket-card { 
-            background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; 
-            padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding: 16px;
         }
-        .ticket-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
-        .ticket-id { font-family: monospace; font-size: 10px; color: #94a3b8; text-transform: uppercase; }
-        .status-badge { 
-            font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; 
-            text-transform: uppercase; border: 1px solid;
+        .stat-card {
+            background: #fff;
+            padding: 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
-        .status-inprogress { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
-        .status-dispatched { background: #fef9ee; color: #92400e; border-color: #fef3c7; }
-        .status-resolved { background: #ecfdf5; color: #065f46; border-color: #d1fae5; }
-        
-        .store-name { font-size: 15px; font-weight: 700; margin: 0 0 4px 0; }
-        .desc { font-size: 13px; color: #475569; margin: 0 0 8px 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-        
-        .meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8; }
-        .priority { display: flex; align-items: center; gap: 4px; font-weight: 600; }
-        .priority-emergency { color: #dc2626; }
-        .priority-urgent { color: #ea580c; }
-        
-        .loader-container { display: flex; flex-direction: column; align-items: center; padding: 40px 0; color: #94a3b8; font-size: 13px; }
-        .spinner { 
-            width: 20px; height: 20px; border: 2px solid #e2e8f0; border-top-color: #2563eb; 
-            border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px;
+        .stat-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-value { font-size: 22px; font-weight: 300; margin-top: 2px; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            padding: 0 16px;
+            gap: 8px;
+            margin-bottom: 16px;
         }
+        .tab {
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            background: transparent;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        /* Ticket List */
+        main { padding: 0 16px 40px 16px; max-width: 600px; margin: 0 auto; }
+        .ticket-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            transition: transform 0.1s;
+        }
+        .ticket-card:active { transform: scale(0.98); }
+        
+        .t-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .t-id { font-family: ui-monospace, monospace; font-size: 9px; color: var(--muted); background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+        .t-status { font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; border: 1px solid; }
+        .status-dispatched { background: #fff7ed; color: #9a3412; border-color: #ffedd5; }
+        .status-inprogress { background: #eff6ff; color: #1e40af; border-color: #dbeafe; }
+        .status-waiting { background: #fef2f2; color: #991b1b; border-color: #fee2e2; }
+        .status-resolved { background: #f0fdf4; color: #166534; border-color: #dcfce7; }
+
+        .t-store { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .t-desc { font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        .t-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 10px; }
+        .t-priority { font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .p-emergency { color: var(--danger); }
+        .p-urgent { color: var(--warning); }
+        .t-time { font-size: 10px; color: var(--muted); }
+
+        /* Modal */
+        #modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: none; align-items: flex-end; backdrop-filter: blur(8px); }
+        #modal-content { background: #fff; width: 100%; border-radius: 24px 24px 0 0; padding: 24px; max-height: 90vh; overflow-y: auto; }
+        .m-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .m-close { background: #f1f5f9; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+        .photo-scroll { display: flex; gap: 10px; overflow-x: auto; margin-top: 16px; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+        .photo-scroll img { width: 220px; height: 220px; object-fit: cover; border-radius: 16px; flex-shrink: 0; scroll-snap-align: start; background: #f1f5f9; }
+
+        /* Loading & Errors */
+        .loading-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+        .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        .empty { text-align: center; padding: 40px 20px; color: #94a3b8; }
-        .hidden { display: none; }
-
-        /* Modal - Simple Overlay */
-        #modal { 
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; 
-            display: none; align-items: flex-end;
-        }
-        #modal-content { 
-            background: #fff; width: 100%; border-radius: 20px 20px 0 0; 
-            padding: 20px; max-height: 90vh; overflow-y: auto;
-        }
-        .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
-        .close-btn { background: #f1f5f9; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 18px; cursor: pointer; }
-        .photo-grid { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-top: 10px; }
-        .photo-grid img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; flex-shrink: 0; background: #f1f5f9; }
+        
+        .error-box { background: #fef2f2; border: 1px solid #fee2e2; border-radius: 16px; padding: 16px; color: #991b1b; font-size: 13px; margin: 16px; line-height: 1.6; }
+        .error-box b { color: #7f1d1d; }
+        .error-box pre { background: #fff; padding: 8px; border-radius: 8px; font-size: 11px; margin-top: 8px; overflow-x: auto; border: 1px solid #fee2e2; }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="user-info">
+        <div class="user-profile">
             <div class="avatar">ZR</div>
-            <div class="user-text">
-                <h2>Zamir Rios</h2>
+            <div class="user-details">
+                <h1>Zamir Rios</h1>
                 <p>rmtech3@dossaniparadise.com</p>
             </div>
         </div>
-        <div style="font-size: 10px; color: #10b981; font-weight: bold;">● LIVE</div>
+        <div id="status-dot" style="font-size: 9px; color: var(--success); font-weight: 800;">● LIVE</div>
     </header>
 
-    <div class="tabs">
-        <div id="tab-active" class="tab active" onclick="switchTab('active')">ACTIVE</div>
-        <div id="tab-completed" class="tab" onclick="switchTab('completed')">COMPLETED</div>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Active Jobs</div>
+            <div id="count-active" class="stat-value">--</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">History</div>
+            <div id="count-total" class="stat-value">--</div>
+        </div>
     </div>
 
-    <main>
-        <div id="list-container">
-            <div class="loader-container">
-                <div class="spinner"></div>
-                <p>Loading jobs...</p>
-            </div>
+    <div class="tabs">
+        <button id="tab-active" class="tab active" onclick="setTab('active')">Active</button>
+        <button id="tab-history" class="tab" onclick="setTab('history')">History</button>
+    </div>
+
+    <main id="main-content">
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Optimizing data for your phone...</p>
         </div>
     </main>
 
@@ -134,119 +200,123 @@
         const auth = firebase.auth();
         const TARGET_EMAIL = 'rmtech3@dossaniparadise.com';
 
-        let activeTickets = [];
-        let completedTickets = [];
+        let tickets = [];
         let currentTab = 'active';
-        let completedLoaded = false;
 
-        // Auto-auth
-        auth.signInAnonymously().catch(e => console.error(e));
-
-        function switchTab(tab) {
-            currentTab = tab;
-            document.getElementById('tab-active').className = 'tab' + (tab === 'active' ? ' active' : '');
-            document.getElementById('tab-completed').className = 'tab' + (tab === 'completed' ? ' active' : '');
-            
-            if (tab === 'completed' && !completedLoaded) {
-                loadCompleted();
-            } else {
-                renderList();
+        // 1. SILENT AUTH
+        auth.signInAnonymously().catch(err => {
+            console.error(err);
+            if (err.code === 'auth/admin-restricted-operation') {
+                showError(`
+                    <b>Authentication Required</b><br>
+                    Your Firebase settings are blocking this app. To fix:<br>
+                    1. Go to <b>Firebase Console</b><br>
+                    2. <b>Authentication</b> > <b>Sign-in method</b><br>
+                    3. Enable <b>Anonymous</b> provider.<br><br>
+                    <i>Alternatively, update your Rules to allow public read on the tickets path.</i>
+                `);
             }
+        });
+
+        function showError(msg) {
+            document.getElementById('main-content').innerHTML = `<div class="error-box">${msg}</div>`;
         }
 
-        function loadActive() {
-            const ref = db.ref('tickets');
-            // Real-time listener for active jobs only
+        function setTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-active').classList.toggle('active', tab === 'active');
+            document.getElementById('tab-history').classList.toggle('active', tab === 'history');
+            render();
+        }
+
+        // 2. SERVER-SIDE FILTERING
+        function startSync() {
+            const ref = db.ref('tickets').orderByChild('assignedTo').equalTo(TARGET_EMAIL).limitToLast(40);
+            
             ref.on('value', (snap) => {
                 const data = snap.val();
-                if (!data) { activeTickets = []; renderList(); return; }
+                if (!data) { tickets = []; render(); return; }
                 
-                activeTickets = Object.entries(data)
-                    .map(([key, val]) => ({ ...val, _key: key }))
-                    .filter(t => 
-                        t.assignedTo?.toLowerCase() === TARGET_EMAIL.toLowerCase() &&
-                        ['inprogress', 'dispatched', 'assigned', 'waiting'].includes(t.status)
-                    );
-                
-                activeTickets.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-                if (currentTab === 'active') renderList();
-            });
-        }
-
-        function loadCompleted() {
-            completedLoaded = true;
-            document.getElementById('list-container').innerHTML = '<div class="loader-container"><div class="spinner"></div><p>Loading history...</p></div>';
-            
-            const ref = db.ref('tickets');
-            // One-time fetch for history to save memory/data
-            ref.once('value').then((snap) => {
-                const data = snap.val();
-                if (!data) { completedTickets = []; }
-                else {
-                    completedTickets = Object.entries(data)
-                        .map(([key, val]) => ({ ...val, _key: key }))
-                        .filter(t => 
-                            t.assignedTo?.toLowerCase() === TARGET_EMAIL.toLowerCase() &&
-                            !['inprogress', 'dispatched', 'assigned', 'waiting'].includes(t.status)
-                        );
-                    completedTickets.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                tickets = Object.entries(data).map(([key, val]) => ({ ...val, _key: key }));
+                tickets.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                render();
+            }, (err) => {
+                if (err.code === 'PERMISSION_DENIED') {
+                    showError(`
+                        <b>Access Denied</b><br>
+                        Your Database Rules are blocking this app. Update them to:<br>
+                        <pre>{
+  "rules": {
+    "tickets": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["assignedTo"]
+    }
+  }
+}</pre>
+                    `);
+                } else {
+                    showError(`Error: ${err.message}`);
                 }
-                if (currentTab === 'completed') renderList();
             });
         }
 
-        function renderList() {
-            const container = document.getElementById('list-container');
-            const list = currentTab === 'active' ? activeTickets : completedTickets;
+        function render() {
+            const container = document.getElementById('main-content');
+            const activeList = tickets.filter(t => ['inprogress', 'dispatched', 'assigned', 'waiting'].includes(t.status));
+            const historyList = tickets.filter(t => !['inprogress', 'dispatched', 'assigned', 'waiting'].includes(t.status));
             
+            document.getElementById('count-active').innerText = activeList.length;
+            document.getElementById('count-total').innerText = historyList.length;
+
+            const list = currentTab === 'active' ? activeList : historyList;
+
             if (list.length === 0) {
-                container.innerHTML = `<div class="empty">No ${currentTab} jobs found.</div>`;
+                container.innerHTML = `<div class="loading-state"><p>No ${currentTab} jobs found.</p></div>`;
                 return;
             }
 
             container.innerHTML = list.map(t => `
-                <div class="ticket-card" onclick="openModal('${t._key}', '${currentTab}')">
-                    <div class="ticket-header">
-                        <span class="ticket-id">${t.id || 'TKT'}</span>
-                        <span class="status-badge status-${t.status}">${t.status}</span>
+                <div class="ticket-card" onclick="openModal('${t._key}')">
+                    <div class="t-header">
+                        <span class="t-id">${t.id || 'TKT'}</span>
+                        <span class="t-status status-${t.status}">${t.status}</span>
                     </div>
-                    <h3 class="store-name">${t.storeName || 'Store'}</h3>
-                    <p class="desc">${t.description || ''}</p>
-                    <div class="meta">
-                        <span class="priority ${t.priority === 'emergency' ? 'priority-emergency' : t.priority === 'urgent' ? 'priority-urgent' : ''}">
+                    <div class="t-store">${t.storeName || 'Unknown Store'}</div>
+                    <div class="t-desc">${t.description || ''}</div>
+                    <div class="t-footer">
+                        <span class="t-priority p-${t.priority}">
                             ${t.priority === 'emergency' ? '🚨' : t.priority === 'urgent' ? '⚠️' : '✅'} ${t.priority}
                         </span>
-                        <span>${getTimeAgo(t.createdAt)}</span>
+                        <span class="t-time">${formatTime(t.createdAt)}</span>
                     </div>
                 </div>
             `).join('');
         }
 
-        function openModal(key, type) {
-            const list = type === 'active' ? activeTickets : completedTickets;
-            const t = list.find(x => x._key === key);
+        function openModal(key) {
+            const t = tickets.find(x => x._key === key);
             if (!t) return;
 
-            const body = document.getElementById('modal-body');
-            const photos = t.photos ? `<div class="photo-grid">${t.photos.map(url => `<img src="${url}" loading="lazy">`).join('')}</div>` : '';
+            const photos = t.photos ? `<div class="photo-scroll">${t.photos.map(url => `<img src="${url}" loading="lazy">`).join('')}</div>` : '';
             
-            body.innerHTML = `
-                <div class="modal-header">
+            document.getElementById('modal-body').innerHTML = `
+                <div class="m-header">
                     <div>
-                        <h2 style="margin:0;font-size:18px;">${t.storeName}</h2>
-                        <p style="margin:0;font-size:12px;color:#64748b;">${t.id}</p>
+                        <h2 style="margin:0;font-size:20px;">${t.storeName}</h2>
+                        <p style="margin:0;font-size:12px;color:var(--muted);">${t.id}</p>
                     </div>
-                    <button class="close-btn" onclick="closeModal()">✕</button>
+                    <button class="m-close" onclick="closeModal()">✕</button>
                 </div>
-                <div style="font-size:14px; color:#334155; margin-bottom:15px; white-space:pre-wrap;">${t.description}</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
-                    <div style="background:#f8fafc; padding:10px; border-radius:8px;">
-                        <div style="font-size:10px; font-weight:bold; color:#94a3b8; margin-bottom:2px;">PRIORITY</div>
-                        <div style="font-weight:bold; font-size:13px;">${t.priority.toUpperCase()}</div>
+                <div style="font-size:15px; color:#334155; line-height:1.6; margin-bottom:20px; white-space:pre-wrap;">${t.description}</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <div style="background:var(--bg); padding:12px; border-radius:12px;">
+                        <div style="font-size:10px; font-weight:800; color:var(--muted); margin-bottom:2px;">PRIORITY</div>
+                        <div style="font-weight:700; font-size:14px;">${t.priority.toUpperCase()}</div>
                     </div>
-                    <div style="background:#f8fafc; padding:10px; border-radius:8px;">
-                        <div style="font-size:10px; font-weight:bold; color:#94a3b8; margin-bottom:2px;">STATUS</div>
-                        <div style="font-weight:bold; font-size:13px;">${t.status.toUpperCase()}</div>
+                    <div style="background:var(--bg); padding:12px; border-radius:12px;">
+                        <div style="font-size:10px; font-weight:800; color:var(--muted); margin-bottom:2px;">STATUS</div>
+                        <div style="font-weight:700; font-size:14px;">${t.status.toUpperCase()}</div>
                     </div>
                 </div>
                 ${photos}
@@ -254,11 +324,9 @@
             document.getElementById('modal').style.display = 'flex';
         }
 
-        function closeModal() {
-            document.getElementById('modal').style.display = 'none';
-        }
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
 
-        function getTimeAgo(ts) {
+        function formatTime(ts) {
             if (!ts) return '';
             const diff = Math.floor((Date.now() - ts) / 1000);
             if (diff < 60) return 'now';
@@ -267,7 +335,7 @@
             return Math.floor(diff/86400) + 'd';
         }
 
-        loadActive();
+        startSync();
     </script>
 </body>
 </html>
