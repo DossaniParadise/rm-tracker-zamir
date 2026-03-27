@@ -2,89 +2,123 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zamir's Ticket Tracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zamir's Tracker</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .ticket-card:active { transform: scale(0.98); }
-        .loader {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #2563eb;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
+        /* Ultra-lightweight CSS - No external frameworks */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: #f8fafc; margin: 0; color: #1e293b; line-height: 1.4;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        header { 
+            background: #fff; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; 
+            position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between;
+        }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .avatar { 
+            width: 36px; height: 36px; background: #2563eb; color: #fff; 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+        }
+        .user-text h2 { margin: 0; font-size: 14px; font-weight: 700; }
+        .user-text p { margin: 0; font-size: 11px; color: #64748b; }
+        
+        .tabs { 
+            display: flex; background: #fff; border-bottom: 1px solid #e2e8f0; 
+            position: sticky; top: 61px; z-index: 9;
+        }
+        .tab { 
+            flex: 1; text-align: center; padding: 12px; font-size: 13px; font-weight: 600; 
+            color: #64748b; border-bottom: 2px solid transparent; cursor: pointer;
+        }
+        .tab.active { color: #2563eb; border-bottom-color: #2563eb; background: #eff6ff; }
+
+        main { padding: 12px; max-width: 600px; margin: 0 auto; }
+        
+        .ticket-card { 
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; 
+            padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .ticket-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .ticket-id { font-family: monospace; font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+        .status-badge { 
+            font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; 
+            text-transform: uppercase; border: 1px solid;
+        }
+        .status-inprogress { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+        .status-dispatched { background: #fef9ee; color: #92400e; border-color: #fef3c7; }
+        .status-resolved { background: #ecfdf5; color: #065f46; border-color: #d1fae5; }
+        
+        .store-name { font-size: 15px; font-weight: 700; margin: 0 0 4px 0; }
+        .desc { font-size: 13px; color: #475569; margin: 0 0 8px 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        .meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8; }
+        .priority { display: flex; align-items: center; gap: 4px; font-weight: 600; }
+        .priority-emergency { color: #dc2626; }
+        .priority-urgent { color: #ea580c; }
+        
+        .loader-container { display: flex; flex-direction: column; align-items: center; padding: 40px 0; color: #94a3b8; font-size: 13px; }
+        .spinner { 
+            width: 20px; height: 20px; border: 2px solid #e2e8f0; border-top-color: #2563eb; 
+            border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty { text-align: center; padding: 40px 20px; color: #94a3b8; }
+        .hidden { display: none; }
+
+        /* Modal - Simple Overlay */
+        #modal { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; 
+            display: none; align-items: flex-end;
+        }
+        #modal-content { 
+            background: #fff; width: 100%; border-radius: 20px 20px 0 0; 
+            padding: 20px; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+        .close-btn { background: #f1f5f9; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+        .photo-grid { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-top: 10px; }
+        .photo-grid img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; flex-shrink: 0; background: #f1f5f9; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen pb-10">
+<body>
 
-    <!-- Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-10 px-4 py-4 flex items-center justify-between shadow-sm">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-md shadow-blue-200">
-                ZR
-            </div>
-            <div>
-                <h2 class="font-bold text-slate-900 leading-tight">Zamir Rios</h2>
-                <p class="text-xs text-slate-500">rmtech3@dossaniparadise.com</p>
+    <header>
+        <div class="user-info">
+            <div class="avatar">ZR</div>
+            <div class="user-text">
+                <h2>Zamir Rios</h2>
+                <p>rmtech3@dossaniparadise.com</p>
             </div>
         </div>
-        <div id="connection-status" class="flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            Live
-        </div>
+        <div style="font-size: 10px; color: #10b981; font-weight: bold;">● LIVE</div>
     </header>
 
-    <!-- Main Content -->
-    <main class="p-4 max-w-2xl mx-auto space-y-4">
-        
-        <!-- Stats Row -->
-        <div class="grid grid-cols-2 gap-3 mb-2">
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Jobs</p>
-                <p id="active-count" class="text-2xl font-bold text-blue-600">0</p>
-            </div>
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Completed</p>
-                <p id="completed-count" class="text-2xl font-bold text-slate-400">0</p>
-            </div>
-        </div>
+    <div class="tabs">
+        <div id="tab-active" class="tab active" onclick="switchTab('active')">ACTIVE</div>
+        <div id="tab-completed" class="tab" onclick="switchTab('completed')">COMPLETED</div>
+    </div>
 
-        <div class="flex items-center gap-2 mb-2">
-            <i data-lucide="wrench" class="w-5 h-5 text-blue-600"></i>
-            <h3 class="font-bold text-slate-800">Assigned Tickets</h3>
-        </div>
-
-        <!-- Ticket List Container -->
-        <div id="ticket-list" class="space-y-3">
-            <div class="flex flex-col items-center justify-center py-20 text-slate-400">
-                <div class="loader mb-4"></div>
-                <p>Loading tickets...</p>
+    <main>
+        <div id="list-container">
+            <div class="loader-container">
+                <div class="spinner"></div>
+                <p>Loading jobs...</p>
             </div>
         </div>
     </main>
 
-    <!-- Ticket Detail Modal -->
-    <div id="modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
-        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeModal()"></div>
-        <div class="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden transform transition-transform duration-300 translate-y-full" id="modal-content">
-            <div class="h-1.5 w-12 bg-slate-200 rounded-full mx-auto my-3 sm:hidden"></div>
-            <div class="p-6 max-h-[85vh] overflow-y-auto" id="modal-body">
-                <!-- Content injected here -->
-            </div>
+    <div id="modal" onclick="if(event.target===this)closeModal()">
+        <div id="modal-content">
+            <div id="modal-body"></div>
         </div>
     </div>
 
     <script>
-        // --- Firebase Config ---
         const firebaseConfig = {
             apiKey: "AIzaSyDf0W5a8UPpuZbo873nWfed6VvNExL4BjM",
             authDomain: "dossani-paradise-rm-tracker.firebaseapp.com",
@@ -100,213 +134,140 @@
         const auth = firebase.auth();
         const TARGET_EMAIL = 'rmtech3@dossaniparadise.com';
 
-        // --- State ---
-        let tickets = [];
+        let activeTickets = [];
+        let completedTickets = [];
+        let currentTab = 'active';
+        let completedLoaded = false;
 
-        // --- Auth ---
-        // Automatically sign in anonymously to bypass login screen while maintaining DB access
-        auth.signInAnonymously().catch(err => console.error("Auth error:", err));
+        // Auto-auth
+        auth.signInAnonymously().catch(e => console.error(e));
 
-        // --- Data Fetching ---
-        function loadTickets() {
-            const ticketsRef = db.ref('tickets');
-            ticketsRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    tickets = Object.entries(data)
-                        .map(([key, val]) => ({ ...val, _key: key }))
-                        .filter(t => t.assignedTo?.toLowerCase() === TARGET_EMAIL.toLowerCase());
-                    
-                    tickets.sort((a, b) => {
-                        const aActive = ['inprogress', 'dispatched', 'assigned', 'waiting'].includes(a.status);
-                        const bActive = ['inprogress', 'dispatched', 'assigned', 'waiting'].includes(b.status);
-                        if (aActive && !bActive) return -1;
-                        if (!aActive && bActive) return 1;
-                        return (b.createdAt || 0) - (a.createdAt || 0);
-                    });
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-active').className = 'tab' + (tab === 'active' ? ' active' : '');
+            document.getElementById('tab-completed').className = 'tab' + (tab === 'completed' ? ' active' : '');
+            
+            if (tab === 'completed' && !completedLoaded) {
+                loadCompleted();
+            } else {
+                renderList();
+            }
+        }
 
-                    renderList();
-                    updateStats();
-                } else {
-                    renderEmpty();
-                }
+        function loadActive() {
+            const ref = db.ref('tickets');
+            // Real-time listener for active jobs only
+            ref.on('value', (snap) => {
+                const data = snap.val();
+                if (!data) { activeTickets = []; renderList(); return; }
+                
+                activeTickets = Object.entries(data)
+                    .map(([key, val]) => ({ ...val, _key: key }))
+                    .filter(t => 
+                        t.assignedTo?.toLowerCase() === TARGET_EMAIL.toLowerCase() &&
+                        ['inprogress', 'dispatched', 'assigned', 'waiting'].includes(t.status)
+                    );
+                
+                activeTickets.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                if (currentTab === 'active') renderList();
             });
         }
 
-        // --- UI Rendering ---
+        function loadCompleted() {
+            completedLoaded = true;
+            document.getElementById('list-container').innerHTML = '<div class="loader-container"><div class="spinner"></div><p>Loading history...</p></div>';
+            
+            const ref = db.ref('tickets');
+            // One-time fetch for history to save memory/data
+            ref.once('value').then((snap) => {
+                const data = snap.val();
+                if (!data) { completedTickets = []; }
+                else {
+                    completedTickets = Object.entries(data)
+                        .map(([key, val]) => ({ ...val, _key: key }))
+                        .filter(t => 
+                            t.assignedTo?.toLowerCase() === TARGET_EMAIL.toLowerCase() &&
+                            !['inprogress', 'dispatched', 'assigned', 'waiting'].includes(t.status)
+                        );
+                    completedTickets.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                }
+                if (currentTab === 'completed') renderList();
+            });
+        }
+
         function renderList() {
-            const container = document.getElementById('ticket-list');
-            if (tickets.length === 0) {
-                renderEmpty();
+            const container = document.getElementById('list-container');
+            const list = currentTab === 'active' ? activeTickets : completedTickets;
+            
+            if (list.length === 0) {
+                container.innerHTML = `<div class="empty">No ${currentTab} jobs found.</div>`;
                 return;
             }
 
-            container.innerHTML = tickets.map(t => {
-                const statusClass = getStatusClass(t.status);
-                const priorityIcon = getPriorityIcon(t.priority);
-                const timeAgo = getTimeAgo(t.createdAt);
-                
-                return `
-                    <div onclick="openModal('${t._key}')" class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm transition-all active:scale-[0.98] cursor-pointer hover:border-blue-300">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">${t.id || 'NO-ID'}</span>
-                            <div class="flex items-center gap-2">
-                                ${priorityIcon}
-                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-tighter ${statusClass}">
-                                    ${t.status}
-                                </span>
-                            </div>
-                        </div>
-                        <h4 class="font-bold text-slate-900 mb-1 truncate">${t.storeName || 'Unknown Store'}</h4>
-                        <p class="text-sm text-slate-600 line-clamp-2 mb-3">${t.description || 'No description'}</p>
-                        <div class="flex items-center justify-between text-xs text-slate-400">
-                            <div class="flex items-center gap-1">
-                                <i data-lucide="map-pin" class="w-3 h-3"></i>
-                                <span>${t.storeCode || ''}</span>
-                            </div>
-                            <span>${timeAgo}</span>
-                        </div>
+            container.innerHTML = list.map(t => `
+                <div class="ticket-card" onclick="openModal('${t._key}', '${currentTab}')">
+                    <div class="ticket-header">
+                        <span class="ticket-id">${t.id || 'TKT'}</span>
+                        <span class="status-badge status-${t.status}">${t.status}</span>
                     </div>
-                `;
-            }).join('');
-            lucide.createIcons();
-        }
-
-        function renderEmpty() {
-            document.getElementById('ticket-list').innerHTML = `
-                <div class="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300">
-                    <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                        <i data-lucide="check-circle-2" class="w-8 h-8"></i>
+                    <h3 class="store-name">${t.storeName || 'Store'}</h3>
+                    <p class="desc">${t.description || ''}</p>
+                    <div class="meta">
+                        <span class="priority ${t.priority === 'emergency' ? 'priority-emergency' : t.priority === 'urgent' ? 'priority-urgent' : ''}">
+                            ${t.priority === 'emergency' ? '🚨' : t.priority === 'urgent' ? '⚠️' : '✅'} ${t.priority}
+                        </span>
+                        <span>${getTimeAgo(t.createdAt)}</span>
                     </div>
-                    <p class="text-slate-500 font-medium">No jobs assigned to you right now.</p>
                 </div>
-            `;
-            lucide.createIcons();
+            `).join('');
         }
 
-        function updateStats() {
-            const active = tickets.filter(t => ['inprogress', 'dispatched', 'assigned', 'waiting'].includes(t.status)).length;
-            const completed = tickets.filter(t => !['inprogress', 'dispatched', 'assigned', 'waiting'].includes(t.status)).length;
-            document.getElementById('active-count').innerText = active;
-            document.getElementById('completed-count').innerText = completed;
-        }
-
-        // --- Modal ---
-        function openModal(key) {
-            const t = tickets.find(x => x._key === key);
+        function openModal(key, type) {
+            const list = type === 'active' ? activeTickets : completedTickets;
+            const t = list.find(x => x._key === key);
             if (!t) return;
 
-            const modal = document.getElementById('modal');
-            const content = document.getElementById('modal-content');
             const body = document.getElementById('modal-body');
-
-            const photosHtml = t.photos ? `
-                <section>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Photos</label>
-                    <div class="flex gap-2 overflow-x-auto pb-2">
-                        ${t.photos.map(url => `<img src="${url}" class="w-40 h-40 object-cover rounded-xl border border-slate-200 flex-shrink-0">`).join('')}
-                    </div>
-                </section>
-            ` : '';
-
-            const activityHtml = t.activity ? `
-                <section class="mt-6">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Activity History</label>
-                    <div class="space-y-3">
-                        ${Object.values(t.activity).reverse().map(act => `
-                            <div class="flex gap-3 text-sm">
-                                <div class="w-1.5 h-1.5 bg-slate-300 rounded-full mt-1.5 flex-shrink-0"></div>
-                                <div>
-                                    <p class="text-slate-700"><span class="font-bold">${act.by}</span> ${act.note || 'updated status'}</p>
-                                    <p class="text-[10px] text-slate-400">${getTimeAgo(act.timestamp)}</p>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </section>
-            ` : '';
-
+            const photos = t.photos ? `<div class="photo-grid">${t.photos.map(url => `<img src="${url}" loading="lazy">`).join('')}</div>` : '';
+            
             body.innerHTML = `
-                <div class="flex justify-between items-start mb-6">
+                <div class="modal-header">
                     <div>
-                        <h3 class="text-xl font-bold text-slate-900">${t.storeName}</h3>
-                        <p class="text-sm text-slate-500">${t.id}</p>
+                        <h2 style="margin:0;font-size:18px;">${t.storeName}</h2>
+                        <p style="margin:0;font-size:12px;color:#64748b;">${t.id}</p>
                     </div>
-                    <button onclick="closeModal()" class="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
+                    <button class="close-btn" onclick="closeModal()">✕</button>
                 </div>
-                <div class="space-y-6">
-                    <section>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Description</label>
-                        <p class="text-slate-700 leading-relaxed">${t.description}</p>
-                    </section>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-slate-50 p-3 rounded-xl">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Priority</label>
-                            <div class="font-semibold text-slate-900 capitalize flex items-center gap-2">
-                                ${getPriorityIcon(t.priority)} ${t.priority}
-                            </div>
-                        </div>
-                        <div class="bg-slate-50 p-3 rounded-xl">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Status</label>
-                            <div class="font-semibold text-slate-900 capitalize">${t.status}</div>
-                        </div>
+                <div style="font-size:14px; color:#334155; margin-bottom:15px; white-space:pre-wrap;">${t.description}</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                    <div style="background:#f8fafc; padding:10px; border-radius:8px;">
+                        <div style="font-size:10px; font-weight:bold; color:#94a3b8; margin-bottom:2px;">PRIORITY</div>
+                        <div style="font-weight:bold; font-size:13px;">${t.priority.toUpperCase()}</div>
                     </div>
-                    ${photosHtml}
-                    ${activityHtml}
+                    <div style="background:#f8fafc; padding:10px; border-radius:8px;">
+                        <div style="font-size:10px; font-weight:bold; color:#94a3b8; margin-bottom:2px;">STATUS</div>
+                        <div style="font-weight:bold; font-size:13px;">${t.status.toUpperCase()}</div>
+                    </div>
                 </div>
+                ${photos}
             `;
-
-            modal.classList.remove('hidden');
-            setTimeout(() => content.classList.remove('translate-y-full'), 10);
-            lucide.createIcons();
+            document.getElementById('modal').style.display = 'flex';
         }
 
         function closeModal() {
-            const modal = document.getElementById('modal');
-            const content = document.getElementById('modal-content');
-            content.classList.add('translate-y-full');
-            setTimeout(() => modal.classList.add('hidden'), 300);
-        }
-
-        // --- Helpers ---
-        function getStatusClass(status) {
-            const map = {
-                unassigned: 'bg-red-100 text-red-700 border-red-200',
-                assigned: 'bg-purple-100 text-purple-700 border-purple-200',
-                dispatched: 'bg-blue-100 text-blue-700 border-blue-200',
-                inprogress: 'bg-blue-600 text-white border-blue-700',
-                waiting: 'bg-amber-100 text-amber-700 border-amber-200',
-                resolved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-                closed: 'bg-slate-100 text-slate-700 border-slate-200',
-            };
-            return map[status] || 'bg-slate-100 border-slate-200';
-        }
-
-        function getPriorityIcon(p) {
-            if (p === 'emergency') return '<i data-lucide="alert-circle" class="w-4 h-4 text-red-500"></i>';
-            if (p === 'urgent') return '<i data-lucide="alert-circle" class="w-4 h-4 text-amber-500"></i>';
-            return '<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>';
+            document.getElementById('modal').style.display = 'none';
         }
 
         function getTimeAgo(ts) {
             if (!ts) return '';
-            const seconds = Math.floor((new Date() - ts) / 1000);
-            let interval = seconds / 31536000;
-            if (interval > 1) return Math.floor(interval) + "y";
-            interval = seconds / 2592000;
-            if (interval > 1) return Math.floor(interval) + "mo";
-            interval = seconds / 86400;
-            if (interval > 1) return Math.floor(interval) + "d";
-            interval = seconds / 3600;
-            if (interval > 1) return Math.floor(interval) + "h";
-            interval = seconds / 60;
-            if (interval > 1) return Math.floor(interval) + "m";
-            return Math.floor(seconds) + "s";
+            const diff = Math.floor((Date.now() - ts) / 1000);
+            if (diff < 60) return 'now';
+            if (diff < 3600) return Math.floor(diff/60) + 'm';
+            if (diff < 86400) return Math.floor(diff/3600) + 'h';
+            return Math.floor(diff/86400) + 'd';
         }
 
-        // Init
-        loadTickets();
+        loadActive();
     </script>
 </body>
 </html>
-
